@@ -1,0 +1,11 @@
+apt_package %w(default-jre default-jdk  nginx) do
+  action :install
+end
+
+include_recipe 'myelk::elasticsearch'
+
+include_recipe 'myelk::kibana'
+
+include_recipe 'myelk::logstash'
+
+include_recipe 'myelk::filebeat'
