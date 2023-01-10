@@ -1,0 +1,42 @@
+package 'logstash' do
+  action :install
+end
+
+file '/etc/logstash/conf.d/02-beats-input.conf' do
+  content <<-EOF
+    input {
+    beats {
+      port => 5044
+     }
+    }
+  EOF
+  action :create_if_missing
+  not_if { ::File.exist?('/etc/logstash/conf.d/02-beats-input.conf') }
+end
+
+file '/etc/logstash/conf.d/30-elasticsearch-output.conf' do
+  content <<-EOF
+    output {
+       if [@metadata][pipeline] {
+          elasticsearch {
+          hosts => ["localhost:9200"]
+          manage_template => false
+          index => "%{[@metadata][beat]}-%{[@metadata][version]}-%{+YYYY.MM.dd}"
+          pipeline => "%{[@metadata][pipeline]}"
+          }
+      } else {
+          elasticsearch {
+          hosts => ["localhost:9200"]
+          manage_template => false
+          index => "%{[@metadata][beat]}-%{[@metadata][version]}-%{+YYYY.MM.dd}"
+          }
+      }
+    }
+  EOF
+action :create_if_missing
+  not_if { ::File.exist?('/etc/logstash/conf.d/30-elasticsearch-output.conf') }
+end
+
+service 'logstash' do
+  action [:enable, :start]
+end
