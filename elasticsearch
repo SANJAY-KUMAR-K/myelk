@@ -1,0 +1,27 @@
+execute 'elasticsearch-GPG-key' do
+  command 'curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -'
+  not_if { ::File.exist?('/usr/share/') }
+end
+
+execute 'elasticsearch-APT' do
+  command 'echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list'
+  not_if { ::File.exist?('/etc/apt/sources.list.d/') }
+end
+
+execute 'update' do
+  command 'apt-get update -y'
+  action :run
+end
+
+apt_package 'elasticsearch' do
+  action :install
+end
+
+file '/etc/elasticsearch/elasticsearch.yml' do
+  content <<-EOF
+    network.host :0.0.0.0 
+    http.port :9200
+  EOF
+  action :create_if_missing
+  not_if { ::File.exist?('/etc/elasticsearch/elasticsearch.yml') }
+end
