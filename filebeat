@@ -1,0 +1,29 @@
+apt_package 'filebeat' do
+  action :install
+end
+
+file '/etc/filebeat/filebeat.yml' do
+  content <<-EOF
+    #output.elasticsearch:
+     # Array of hosts to connect to.
+     #hosts: ["localhost:9200"]
+    output.logstash:
+      # The Logstash hosts
+      hosts: ["localhost:5044"]
+  EOF
+  action :create_if_missing
+  not_if { ::File.exist?('/etc/filebeat/filebeat.yml') }
+end
+
+execute 'filebeat module' do
+  command 'sudo filebeat modules enable system'
+  not_if { ::File.exist?('filebeat module') }
+end
+
+bash 'run a script' do
+  code <<-EOH
+    sudo filebeat setup --pipelines --modules system
+    sudo filebeat setup --index-management -E output.logstash.enabled=false -E 'output.elasticsearch.hosts=["localhost:9200"]'
+    sudo filebeat setup -E output.logstash.enabled=false -E output.elasticsearch.hosts=['localhost:9200'] -E setup.kibana.host=localhost:5601
+  EOH
+end
