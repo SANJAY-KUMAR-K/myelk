@@ -1,0 +1,52 @@
+package 'kibana' do
+  action :install
+end
+
+service 'kibana' do
+  action [:enable, :start]
+end
+
+bash 'kibana_admin_user' do
+  code <<-EOH
+    echo "admin:`openssl passwd -rle1180`" | sudo tee -a /etc/nginx/htpasswd.users
+  EOH
+  not_if{ ::File.exist?('/etc/nginx/htpasswd.users') }
+end
+
+file '/etc/nginx/sites-available/my_kibana' do
+  content <<-EOF
+  server {
+    listen 80;
+
+    server_name my_kibana;
+    auth_basic "Restricted Access";
+    auth_basic_user_file /etc/nginx/htpasswd.users;
+
+    location / {
+        proxy_pass http://localhost:5601;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+       }
+  }
+  EOF
+  action :create_if_missing
+  not_if { ::File.exist?('/etc/nginx/sites-available/my_kibana') }
+end
+
+execute 'site_enable_config' do
+  command 'sudo ln -s /etc/nginx/sites-available/my_kibana /etc/nginx/sites-enabled/my_kibana'
+  not_if { ::File.exist?('/etc/nginx/sites-enabled/') }
+end
+
+service 'nginx' do
+  action :reload
+  not_if { ::File.exist?('nginx') }
+end
+
+execute 'nginx full' do
+  command "sudo ufw allow 'Nginx Full'"
+  not_if { ::File.exist?('nginx full') }
+end
